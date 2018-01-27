@@ -28,7 +28,19 @@ namespace TestLibLargeSketch
         int CountTris(int child)
         {
             var mesh = sketch.transform.GetChild(child).GetComponent<MeshFilter>().sharedMesh;
-            return mesh.GetIndices(0).Length / 3;
+            for (int submesh = 0; submesh < mesh.subMeshCount; submesh++)
+                if (mesh.GetTopology(submesh) == MeshTopology.Triangles)
+                    return mesh.GetIndices(submesh).Length / 3;
+            return 0;
+        }
+
+        int CountStems(int child)
+        {
+            var mesh = sketch.transform.GetChild(child).GetComponent<MeshFilter>().sharedMesh;
+            for (int submesh = 0; submesh < mesh.subMeshCount; submesh++)
+                if (mesh.GetTopology(submesh) == MeshTopology.Lines)
+                    return mesh.GetIndices(submesh).Length / 2;
+            return 0;
         }
 
         int AddTriangle(string mat_name, float y, bool stems = false)
@@ -209,6 +221,23 @@ namespace TestLibLargeSketch
             yield return null;
 
             Debug.Assert(sketch.transform.childCount == 1);
+        }
+
+        public IEnumerable TestChangeStemMaterial()
+        {
+            int id = AddTriangle("Red", 0.5f, stems: true);
+            sketch.Flush();
+            yield return null;
+            Debug.Assert(CountStems(0) == 3);
+
+            var old_mat = sketch.stemMaterial;
+            sketch.stemMaterial = null;
+            yield return null;
+            Debug.Assert(CountStems(0) == 0);
+
+            sketch.stemMaterial = old_mat;
+            yield return null;
+            Debug.Assert(CountStems(0) == 3);
         }
     }
 }

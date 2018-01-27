@@ -43,7 +43,10 @@ using UnityEngine;
 
 public class LargeSketch : MonoBehaviour
 {
+    [Tooltip("The prefab used to make meshes.")]
     public GameObject largeSketchMeshPrefab;
+
+    [Tooltip("The material to use for stems.  Set to null to hide all stems.  Can be changed at runtime.")]
     public Material stemMaterial;
 
     /// <summary>
@@ -529,7 +532,7 @@ public class LargeSketch : MonoBehaviour
         Mesh mesh;
         MeshRenderer renderer;
         List<int> geom_ids;
-        Material face_mat;
+        Material face_mat, stem_mat;
         int[] all_triangles, all_stems;
 
 
@@ -610,7 +613,8 @@ public class LargeSketch : MonoBehaviour
             geom_ids.TrimExcess();
 
             bool any_triangle = triangles.Count > 0;
-            bool any_stem = stems.Count > 0;
+            bool any_stem = (stems.Count > 0) && sketch.stemMaterial != null;
+            stem_mat = sketch.stemMaterial;
 
             if (any_triangle || any_stem)
             {
@@ -627,7 +631,7 @@ public class LargeSketch : MonoBehaviour
                 if (any_stem)
                 {
                     mesh.SetIndices(stems.ToArray(), MeshTopology.Lines, submesh, calculateBounds: false);
-                    mats[submesh] = sketch.stemMaterial;
+                    mats[submesh] = stem_mat;
                     submesh++;
                 }
 
@@ -655,11 +659,20 @@ public class LargeSketch : MonoBehaviour
         {
             return geom_ids.Count == 0;
         }
+
+        internal void UpdateIfStemMaterialChanged()
+        {
+            if (stem_mat != sketch.stemMaterial)
+                UpdateRenderer();
+        }
     }
+
+
+    Material old_stem_mat;
 
     void CallRegularUpdate()
     {
-        if (!mesh_builders_ready_flag)
+        if (!mesh_builders_ready_flag && old_stem_mat == stemMaterial)
             return;
 
         List<IMeshUpdater> updaters;
@@ -673,6 +686,13 @@ public class LargeSketch : MonoBehaviour
 
         foreach (var updater in updaters)
             updater.MainThreadUpdate(this);
+
+        if (old_stem_mat != stemMaterial)
+        {
+            foreach (var mgo in mgos)
+                mgo.UpdateIfStemMaterialChanged();
+            old_stem_mat = stemMaterial;
+        }
     }
 
 
